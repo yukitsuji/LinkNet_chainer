@@ -1,0 +1,165 @@
+# """
+# Blockの中身は基本いじらない
+# Bottleneckの構成を色々試してみる
+#
+# typeでBlockまたはBottleneckを設定できる
+# Bottlenecで対応可能なparamは、Defaultのみ
+# """
+end_trigger: [900000, "iteration"]
+results: results/paper
+gpus: [0, 1, 2, 3]
+mode: Train
+seed: 1
+class_weight: ./pretrained_model/mean_weight.npy
+
+model:
+  name: LinkNetBasic
+  pretrained_model: # results/enc1_paper/model.npz
+  architecture:
+    initial_block:
+      type: InitialBlock
+      args:
+        in_ch: 3
+        out_ch: 13
+        ksize: 3
+        stride: 2
+        pad: 1
+        nobias: False
+
+    bottleneck1_0:
+      type: Block
+      args:
+        in_ch: 16
+        mid_ch: 16
+        out_ch: 64
+        downsample: True
+        drop_ratio: 0.01
+        use_bn: True
+
+    bottleneck1_1:
+      type: Block
+      loop: 4
+      args:
+        in_ch: 64
+        mid_ch: 16
+        out_ch: 64
+        drop_ratio: 0.01
+        use_bn: True
+
+    bottleneck2_0:
+      type: Block
+      args:
+        in_ch: 64
+        mid_ch: 32
+        out_ch: 128
+        downsample: 1
+        use_bn: True
+        drop_ratio: 0.1
+
+    bottleneck2_1:
+      type: Bottleneck2
+      loop: 2
+      args:
+        in_ch: 128
+        mid_ch: 32
+        out_ch: 128
+        drop_ratio: 0.01
+        use_bn: True
+        drop_ratio: 0.1
+
+    fullconv:
+      type: FullConv
+      args:
+        in_ch: 128
+        out_ch: 19
+        ksize: 1
+        pad: 0
+        stride: 1
+
+dataset:
+  train:
+    module: linknet.data_util.cityscapes.cityscapes_transformed
+    name: CityscapesTransformedDataset
+    args:
+      data_dir: /home/yukitsuji/dataset/Cityscapes
+      label_resolution: gtFine
+      split: train
+      ignore_labels: true
+      crop_size: [512, 1024]
+      color_sigma: null
+      scale: [0.5, 2.0]
+      rotate: False
+      fliplr: True
+      n_class: 19
+      scale_label: 8
+
+  valid:
+    module: linknet.data_util.cityscapes.cityscapes_transformed
+    name: CityscapesTransformedDataset
+    args:
+      data_dir: /home/yukitsuji/dataset/Cityscapes
+      label_resolution: gtFine
+      split: val
+      ignore_labels: true
+      crop_size: [512, 1024]
+      color_sigma: null
+      scale: null
+      rotate: False
+      fliplr: False
+      n_class: 19
+      scale_label: 8
+
+loss:
+  module: loss.pspnet_loss
+  name: PixelwiseSoftmaxClassifier
+  args:
+    ignore_label: -1
+    class_weight_npy: dataset/Cityscapes/class_weight_gtFine.npy
+
+updater:
+  name: ParallelUpdater
+
+iterator:
+  name: MultiprocessIterator
+  train_batchsize: 16
+  test_batchsize: 4
+  args:
+    n_processes: 8
+    n_prefetch: 1
+    shared_mem: 6324224
+
+optimizer:
+  name: MomentumSGD
+  args:
+    lr: 0.01
+    momentum: 0.9
+  hook:
+    WeightDecay: 0.0002
+
+extension:
+  Evaluator:
+    name: SemanticSegmentationEvaluator
+    trigger: [1, 'epoch']
+  snapshot:
+    trigger: [2, "epoch"]
+  snapshot_object:
+    trigger: [2, "epoch"]
+  LogReport:
+    trigger: [1, "epoch"]
+  PrintReport:
+    name:
+      epoch
+      iteration
+      main/loss
+      validation/main/miou
+      validation/main/pixel_accuracy
+      validation/main/mean_class_accuracy
+      lr
+    trigger: [1, "epoch"]
+  ProgressBar:
+    update_interval: 10
+  observe_lr:
+  PolynomialShift:
+    trigger: [1, 'iteration']
+    args:
+      power: 0.9
