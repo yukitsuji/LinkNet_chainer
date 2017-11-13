@@ -9,6 +9,7 @@ import re
 
 import numpy as np
 from google.protobuf import text_format
+import torch
 
 from converter import caffe_pb2
 import chainer
@@ -16,6 +17,9 @@ import chainer.links as L
 from chainer import serializers
 
 from linknet.config_utils import get_model, parse_args
+
+def load_pytorch_model(path):
+    weight = torch.load(path)
 
 
 def get_chainer_model(n_class, input_size, n_blocks, pyramids, mid_stride):

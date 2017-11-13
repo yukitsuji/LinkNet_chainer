@@ -5,7 +5,7 @@
 # typeでBlockまたはBottleneckを設定できる
 # Bottlenecで対応可能なparamは、Defaultのみ
 # """
-end_trigger: [900000, "iteration"]
+end_trigger: [100000, "iteration"]
 results: results/paper
 gpus: [0]
 mode: Train
@@ -14,17 +14,20 @@ class_weight: ./pretrained_model/mean_weight.npy
 
 model:
   name: LinkNetBasic
-  pretrained_model: # results/enc1_paper/model.npz
+  pretrained_model:
+    path: # results/enc1_paper/model.npz
+    name:
   architecture:
     initial_block:
       type: InitialBlock
       args:
         in_ch: 3
-        out_ch: 13
-        ksize: 3
+        out_ch: 64
+        ksize: 7
         stride: 2
-        pad: 1
-        nobias: False
+        pad: 3
+        nobias: True
+        psize: 3
 
     bottleneck1_0:
       type: Block

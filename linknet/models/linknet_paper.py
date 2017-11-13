@@ -137,27 +137,27 @@ class SymmetricConvBNPReLU(SymmetricConvPReLU):
 class InitialBlock(chainer.Chain):
     """Initial Block"""
     def __init__(self, in_ch=3, out_ch=13, ksize=3, stride=2, pad=1,
-                 nobias=False, use_bn=True):
+                 nobias=False, psize=3, use_bn=True, use_prelu=False):
         super(InitialBlock, self).__init__()
         with self.init_scope():
-            self.ib_conv = L.Convolution2D(in_ch, out_ch, ksize, stride,
-                                           pad=pad, nobias=nobias)
-            self.ib_bn = L.BatchNormalization(out_ch + in_ch, eps=1e-5, decay=0.95)
-            self.ib_prelu = L.PReLU()
+            this_mod = sys.modules[__name__]
+            conv_type = "ConvBN" if use_bn else "Conv"
+            activation = "PReLU" if use_prelu else "ReLU"
+            conv_type2 = conv_type + activation
+            conv_type2 = "Symmetric" + conv_type2 if symmetric else conv_type2
+            ConvBlock = getattr(this_mod, conv_type2)
+            self.conv = ConvBlock(in_ch, out_ch, ksize, stride,
+                                  pad, nobias=nobias, upsample=upsample)
+        self.psize = psize
+        self.ppad = int((psize - 1) / 2)
 
     def __call__(self, x):
-        h1 = self.ib_conv(x)
-        h2 = F.max_pooling_2d(x, 2, 2)
-        h = F.concat((h1, h2), axis=1)
-        h = self.ib_bn(h)
-        return self.ib_prelu(h)
+        x = self.conv(x)
+        return F.max_pooling_2d(x, self.psize, 2, self.ppad)
 
     def predict(self, x):
-        h1 = self.ib_conv(x)
-        h2 = F.max_pooling_2d(x, 2, 2)
-        h = F.concat((h1, h2), axis=1)
-        h = self.ib_bn(h)
-        return self.ib_prelu(h)
+        x = self.conv(x)
+        return F.max_pooling_2d(x, self.psize, 2, self.ppad)
 
 
 class Block(chainer.Chain):
