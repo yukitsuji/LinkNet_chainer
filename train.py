@@ -27,6 +27,7 @@ from linknet.models import linknet_paper
 
 def train_linknet():
     """Training LinkNet."""
+    chainer.config.debug = True
     config = parse_args()
     train_data, test_data = load_dataset(config["dataset"])
     train_iter, test_iter = create_iterator(train_data, test_data, config['iterator'])

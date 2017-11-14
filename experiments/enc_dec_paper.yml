@@ -5,9 +5,9 @@
 # typeでBlockまたはBottleneckを設定できる
 # Bottlenecで対応可能なparamは、Defaultのみ
 # """
-end_trigger: [900000, "iteration"]
-results: results/paper
-gpus: [0]
+end_trigger: [100000, "iteration"]
+results: results/paper_base
+gpus: [1]
 mode: Train
 seed: 1
 class_weight: ./pretrained_model/mean_weight.npy
@@ -22,16 +22,17 @@ model:
       args:
         in_ch: 3
         out_ch: 64
-        ksize: 3
+        ksize: 7
         stride: 2
-        pad: 1
+        pad: 3
+        psize: 3
         nobias: True
 
     resblock:
       type: ResBlock18
       args:
         use_bn: True
-        train: False
+        train: True
 
     size: [512, 1024]
     decoder_block4:
@@ -42,9 +43,9 @@ model:
         out_ch: 256
         use_bn: True
         upsample: 1
-        ksize: 3
+        ksize: 2
         stride: 2
-        pad: 1
+        pad: 0
         residual: False
 
     decoder_block3:
@@ -55,9 +56,9 @@ model:
         out_ch: 128
         use_bn: True
         upsample: 1
-        ksize: 3
+        ksize: 2 
         stride: 2
-        pad: 1
+        pad: 0
         residual: False
 
     decoder_block2:
@@ -68,9 +69,9 @@ model:
         out_ch: 64
         use_bn: True
         upsample: 1
-        ksize: 3
+        ksize: 2
         stride: 2
-        pad: 1
+        pad: 0
         residual: False
 
     decoder_block1:
@@ -91,9 +92,9 @@ model:
         in_ch: 64
         out_ch: 32
         upsample: True
-        ksize: 3
+        ksize: 2
         stride: 2
-        pad: 1
+        pad: 0
 
     finalblock2:
       type: ConvBNReLU
@@ -119,7 +120,7 @@ dataset:
     module: linknet.data_util.cityscapes.cityscapes_transformed
     name: CityscapesTransformedDataset
     args:
-      data_dir: /home/yukitsuji/dataset/Cityscapes
+      data_dir: /home/enshu3/dataset/Cityscapes
       label_resolution: gtFine
       split: train
       ignore_labels: true
@@ -135,7 +136,7 @@ dataset:
     module: linknet.data_util.cityscapes.cityscapes_transformed
     name: CityscapesTransformedDataset
     args:
-      data_dir: /home/yukitsuji/dataset/Cityscapes
+      data_dir: /home/enshu3/dataset/Cityscapes
       label_resolution: gtFine
       split: val
       ignore_labels: true
@@ -159,17 +160,17 @@ updater:
 
 iterator:
   name: MultiprocessIterator
-  train_batchsize: 4
-  test_batchsize: 4
-  # args:
-    # n_processes: 8
-    # n_prefetch: 1
-    # shared_mem: 6324224
+  train_batchsize: 8
+  test_batchsize: 8
+  args:
+    n_processes: 4
+    n_prefetch: 1
+    shared_mem: 8097152
 
 optimizer:
   name: MomentumSGD
   args:
-    lr: 0.01
+    lr: 0.001
     momentum: 0.9
   hook:
     WeightDecay: 0.0002

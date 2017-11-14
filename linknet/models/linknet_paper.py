@@ -16,13 +16,8 @@ from linknet.models.spatial_dropout import spatial_dropout
 from chainer import Variable
 from chainercv.links import PixelwiseSoftmaxClassifier
 
-
 def parse_dict(dic, key, value=None):
     return value if not key in dic else dic[key]
-
-def _without_cudnn(f, x):
-    with chainer.using_config('use_cudnn', 'never'):
-        return f.apply((x,))[0]
 
 
 class Conv(chainer.Chain):
@@ -181,7 +176,7 @@ class InitialBlock(chainer.Chain):
 
     def __call__(self, x):
         x = self.conv(x)
-        return F.max_pooling_2d(x, self.psize, 2, self.ppad)
+        return F.max_pooling_2d(x, self.psize, 2)
 
     def predict(self, x):
         x = self.conv(x)
@@ -197,19 +192,26 @@ class ResBacisBlock(chainer.Chain):
             this_mod = sys.modules[__name__]
             conv_type = "ConvBN" if use_bn else "Conv"
             ConvBlock = getattr(this_mod, conv_type + "ReLU")
-            self.conv1 = ConvBlock(in_ch, out_ch, 3, 1, 1, nobias=True)
+            stride = 2 if self.downsample else 1
+            self.conv1 = ConvBlock(in_ch, out_ch, 3, stride, 1, nobias=True)
             ConvBlock = getattr(this_mod, conv_type)
-            self.conv2 = ConvBlock(in_ch, out_ch, 3, 1, 1, nobias=True)
+            self.conv2 = ConvBlock(out_ch, out_ch, 3, 1, 1, nobias=True)
             if self.downsample:
                 self.conv3 = ConvBlock(in_ch, out_ch, 1, 2, 0, nobias=True)
 
     def __call__(self, x):
-        h1 = self.covn2(self.conv(x))
+        h1 = self.conv2(self.conv1(x))
         if self.downsample:
             return F.relu(h1 + self.conv3(x))
         else:
             return F.relu(h1 + x)
 
+    def predict(self, x):
+        h1 = self.conv2(self.conv1(x))
+        if self.downsample:
+            return F.relu(h1 + self.conv3(x))
+        else:
+            return F.relu(h1 + x)
 
 class ResBlock18(chainer.Chain):
     """Initial Block"""
@@ -251,23 +253,22 @@ class DecoderBlock(chainer.Chain):
     """DecoderBlock Abstract"""
     def __init__(self, in_ch=3, mid_ch=0, out_ch=13, ksize=3, stride=1, pad=1,
                  residual=False, nobias=False, outsize=None,
-                 upsample=False, p=None, use_bn=True, use_prelu=False):
+                 upsample=False, use_bn=True, use_prelu=False):
         super(DecoderBlock, self).__init__()
         self.residual = residual
+        mid_ch = int(in_ch / 4)
         with self.init_scope():
             this_mod = sys.modules[__name__]
             conv_type = "ConvBN" if use_bn else "Conv"
             activation = "PReLU" if use_prelu else "ReLU"
             ConvBlock = getattr(this_mod, conv_type + activation)
             self.conv1 = ConvBlock(in_ch, mid_ch, 1, 1, 0, nobias=True)
-
             conv_type2 = conv_type + activation
             ConvBlock = getattr(this_mod, conv_type2)
             self.conv2 = ConvBlock(mid_ch, mid_ch, ksize, stride, pad,
                                    nobias=False,
                                    upsample=upsample,
-                                   outsize=outsize)
-
+                                   outsize=None) # outsize)
             ConvBlock = getattr(this_mod, conv_type)
             self.conv3 = ConvBlock(mid_ch, out_ch, 1, 1, 0, nobias=True)
 
@@ -309,7 +310,7 @@ class LinkNetBasic(chainer.Chain):
         n_class = None
         this_mod = sys.modules[__name__]
         pretrained_path = parse_dict(pretrained_model, 'path', None)
-        size = parse_dict(config, 'size', (512, 1024))
+        self.size = parse_dict(config, 'size', (512, 1024))
         with self.init_scope():
             BlockType = getattr(this_mod, config['initial_block']['type'])
             self.initial_block = BlockType(**config['initial_block']['args'])
@@ -348,7 +349,7 @@ class LinkNetBasic(chainer.Chain):
     def parse_outsize(self, config, key):
         args = config[key]['args']
         scale = config[key]['scale']
-        args['outsize'] = (size[0]/scale, size[1]/scale)
+        args['outsize'] = (self.size[0]/(2**scale), self.size[1]/(2**scale))
         return args
 
 
@@ -362,7 +363,6 @@ class LinkNetBasic(chainer.Chain):
         x = self.decoder2(x)
         x += h1
         x = self.decoder1(x)
-
         x = self.finalblock1(x)
         x = self.finalblock2(x)
         x = self.finalblock3(x)
