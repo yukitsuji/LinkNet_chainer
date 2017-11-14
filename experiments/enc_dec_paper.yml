@@ -16,108 +16,99 @@ model:
   name: LinkNetBasic
   pretrained_model:
     path: # results/enc1_paper/model.npz
-    name: bottleneck2_1
   architecture:
     initial_block:
       type: InitialBlock
       args:
         in_ch: 3
-        out_ch: 13
+        out_ch: 64
         ksize: 3
         stride: 2
         pad: 1
-        nobias: False
+        nobias: True
 
-    bottleneck1_0:
-      type: Block
+    resblock:
+      type: ResBlock18
       args:
-        in_ch: 16
-        mid_ch: 16
-        out_ch: 64
-        downsample: True
-        drop_ratio: 0.01
         use_bn: True
+        train: False
 
-    bottleneck1_1:
-      type: Block
-      loop: 4
+    size: [512, 1024]
+    decoder_block4:
+      type: DecoderBlock
+      scale: 5
       args:
-        in_ch: 64
-        mid_ch: 16
-        out_ch: 64
-        drop_ratio: 0.01
-        use_bn: True
-
-    bottleneck2_0:
-      type: Block
-      args:
-        in_ch: 64
-        mid_ch: 32
-        out_ch: 128
-        downsample: 1
-        use_bn: True
-
-    bottleneck2_1:
-      type: Bottleneck2
-      loop: 2
-      args:
-        in_ch: 128
-        mid_ch: 32
-        out_ch: 128
-        drop_ratio: 0.1
-        use_bn: True
-
-    bottleneck4_0:
-      type: Block
-      p: bottleneck2_0
-      args:
-        in_ch: 128
-        mid_ch: 16
-        out_ch: 64
-        drop_ratio: 0.1
+        in_ch: 512
+        out_ch: 256
         use_bn: True
         upsample: 1
-        pad: 0
+        ksize: 3
         stride: 2
+        pad: 1
+        residual: False
 
-    bottleneck4_1:
-      type: Block
-      loop: 2
+    decoder_block3:
+      type: DecoderBlock
+      scale: 4
       args:
-        in_ch: 64
-        mid_ch: 16
-        out_ch: 64
-        drop_ratio: 0.1
-        use_bn: True
-
-    bottleneck5_0:
-      type: Block
-      p: bottleneck1_0
-      args:
-        in_ch: 64
-        mid_ch: 4
-        out_ch: 16
-        drop_ratio: 0.1
+        in_ch: 256
+        out_ch: 128
         use_bn: True
         upsample: 1
-        pad: 0
+        ksize: 3
         stride: 2
+        pad: 1
+        residual: False
 
-    bottleneck5_1:
-      type: Block
+    decoder_block2:
+      type: DecoderBlock
+      scale: 3
       args:
-        in_ch: 16
-        mid_ch: 4
-        out_ch: 16
-        drop_ratio: 0.1
+        in_ch: 128
+        out_ch: 64
         use_bn: True
+        upsample: 1
+        ksize: 3
+        stride: 2
+        pad: 1
+        residual: False
 
-    fullconv:
-      type: Conv
-    fullconv:
+    decoder_block1:
+      type: DecoderBlock
+      scale: 2
+      args:
+        in_ch: 64
+        out_ch: 64
+        use_bn: True
+        ksize: 3
+        stride: 1
+        pad: 1
+        residual: False
+
+    finalblock1:
+      type: ConvBNReLU
+      args:
+        in_ch: 64
+        out_ch: 32
+        upsample: True
+        ksize: 3
+        stride: 2
+        pad: 1
+
+    finalblock2:
+      type: ConvBNReLU
+      args:
+        in_ch: 32
+        out_ch: 32
+        upsample: False
+        ksize: 3
+        stride: 1
+        pad: 1
+
+    finalblock3:
       type: FullConv
       args:
-        in_ch: 16
+        in_ch: 32
         out_ch: 19
         ksize: 2
         pad: 0
