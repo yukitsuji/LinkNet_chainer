@@ -1,5 +1,5 @@
 # LinkNet_chainer
-Implementation of LinkNet by chainer
+Implementation of LinkNet by chainer  
 Feature Forwarding: Exploiting Encoder Representations for Efficient Semantic Segmentation [link](https://codeac29.github.io/projects/linknet/index.html)
 ```
 ######## Training by cityscapes ########
