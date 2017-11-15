@@ -124,7 +124,7 @@ dataset:
       label_resolution: gtFine
       split: val
       ignore_labels: true
-      crop_size: [512, 1024]
+      crop_size: [1024, 2048]
       color_sigma: null
       scale: null
       rotate: False
